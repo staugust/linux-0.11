@@ -13,8 +13,11 @@ __asm__ ("movl %%esp,%%eax\n\t" \
 	"movw %%ax,%%gs" \
 	:::"ax")
 
+// set interrupt, 恢复中断, 注意, sti/cli只能针对硬中断
 #define sti() __asm__ ("sti"::)
+// clear interrupt, 屏蔽中断 
 #define cli() __asm__ ("cli"::)
+
 #define nop() __asm__ ("nop"::)
 
 #define iret() __asm__ ("iret"::)

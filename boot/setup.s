@@ -10,7 +10,7 @@
 ! boot-block used to be. It is then up to the protected mode
 ! system to read them from there before the area is overwritten
 ! for buffer-blocks.
-!
+! 第二个要执行的代码, 读取内存/硬盘等信息, 然后放到0x90000-0x901FF, 然后转到保护模式, 执行head.s
 
 ! NOTE! These had better be the same as in bootsect.s!
 
@@ -105,7 +105,7 @@ is_disk1:
 
 ! now we want to move to protected mode ...
 
-	cli			! no interrupts allowed !
+	cli			! no interrupts allowed ! 屏蔽硬中断, 因为要进入保护模式, 启动内核了
 
 ! first we move the system to it's rightful place
 

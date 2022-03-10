@@ -1,8 +1,11 @@
-!
+! 16位模式下要支持1MB的地址空间, 所以内存地址需要20bits.
+! 而寄存器只有16位, 无法存储20位地址, 需要将内存分段. 
+! 至少要分成16个段, 每个段64KB. 段值是内存地址的高16位, 段寄存器保存前16位, 段指针寄存器不能只用4位吧? 
+! 需要再看下8086 汇编语言程序设计了解以下. 
 ! SYS_SIZE is the number of clicks (16 bytes) to be loaded.
 ! 0x3000 is 0x30000 bytes = 196kB, more than enough for current
 ! versions of linux
-!
+! 第一个执行的文件, 512字节
 SYSSIZE = 0x3000
 !
 !	bootsect.s		(C) 1991 Linus Torvalds
@@ -32,10 +35,10 @@ begbss:
 .text
 
 SETUPLEN = 4				! nr of setup-sectors
-BOOTSEG  = 0x07c0			! original address of boot-sector
+BOOTSEG  = 0x07c0			! original address of boot-sector https://www.ruanyifeng.com/blog/2015/09/0x7c00.html
 INITSEG  = 0x9000			! we move boot here - out of the way
-SETUPSEG = 0x9020			! setup starts here
-SYSSEG   = 0x1000			! system loaded at 0x10000 (65536).
+SETUPSEG = 0x9020			! setup starts here ; why there's 512 bytes between INITSEG and SETUPSEG? 
+SYSSEG   = 0x1000			! system loaded at 0x10000 (65536). 64KB for what? 
 ENDSEG   = SYSSEG + SYSSIZE		! where to stop loading
 
 ! ROOT_DEV:	0x000 - same type of floppy as boot.
@@ -45,24 +48,36 @@ ROOT_DEV = 0x306
 entry _start
 _start:
 	mov	ax,#BOOTSEG
-	mov	ds,ax
+	mov	ds,ax                   ! ds = 0x07c0
 	mov	ax,#INITSEG
-	mov	es,ax
-	mov	cx,#256
-	sub	si,si
-	sub	di,di
-	rep
-	movw
-	jmpi	go,INITSEG
-go:	mov	ax,cs
-	mov	ds,ax
-	mov	es,ax
+	mov	es,ax                   ! ax = es = 0x9000
+	mov	cx,#256                 ! cx = 0x100
+	sub	si,si                   ! si = 0
+	sub	di,di                   ! di = 0
+	rep                             ! 重复执行, 直到cx = 0
+	movw                            ! 复制1个word, 也就是两个字节, 所以一共复制了512字节. 
+	jmpi	go,INITSEG              ! 跳转到段INITSET的go处执行, 此时cs = #INITSEG
+go:	mov	ax,cs                   ! ax = cs
+	mov	ds,ax                   ! ds = cs
+	mov	es,ax                   ! es = cs
 ! put stack at 0x9ff00.
-	mov	ss,ax
-	mov	sp,#0xFF00		! arbitrary value >>512
+	mov	ss,ax                   ! ss = cs
+	mov	sp,#0xFF00		! arbitrary value >>512 , sp = 0xFF00
 
 ! load the setup-sectors directly after the bootblock.
 ! Note that 'es' is already set up.
+
+!BIOS INT13 2号中断           INT 13 - DISK - READ SECTORS INTO MEMORY
+!               AH = 02h
+!               AL = number of sectors to read
+!               CH = track (for hard disk, bits 8,9 in high bits of CL)
+!               CL = sector
+!               DH = head
+!               DL = drive
+!               ES:BX = address of buffer to fill
+!              Return: CF = set if error occurred
+!               AH = status (see AH=1 above)
+!               AL = number of sectors read
 
 load_setup:
 	mov	dx,#0x0000		! drive 0, head 0
@@ -79,6 +94,15 @@ load_setup:
 ok_load_setup:
 
 ! Get disk drive parameters, specifically nr of sectors/track
+!BIOS INT13 8号中断            INT 13 - DISK - GET CURRENT DRIVE PARAMETERS (XT,AT,XT286,CONV,PS)
+!                AH = 08h
+!                DL = drive number
+!               Return: CF set on error
+!                AH = status code (see AH=1 above)
+!                DL = number of consecutive acknowledging drives
+!                DH = maximum value for head number
+!                CL = maximum value fo sector number
+!                CH = maximum value for cylinder number
 
 	mov	dl,#0x00
 	mov	ax,#0x0800		! AH=8 is get drive parameters
@@ -98,7 +122,7 @@ ok_load_setup:
 	mov	cx,#24
 	mov	bx,#0x0007		! page 0, attribute 7 (normal)
 	mov	bp,#msg1
-	mov	ax,#0x1301		! write string, move cursor
+	mov	ax,#0x1301		! write string, move cursor, AH=0x13, AL=0x01
 	int	0x10
 
 ! ok, we've written the message, now

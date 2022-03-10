@@ -75,8 +75,8 @@ __asm__("cld ; rep ; movsl"::"S" (from),"D" (to),"c" (1024))
 
 // 物理内存映射字节图（1字节代表1页内存）。每个页面对应的字节用于标志页面当前引
 // 用（占用）次数。它最大可以映射15MB的内存空间。在初始化函数mem_init()中，对于
-// 不能用做主内存页面的位置均都预先被设置成USED（100）.
-static unsigned char mem_map [ PAGING_PAGES ] = {0,};
+// 不能用做主内存页面的位置均都预先被设置成USED（100）. 
+static unsigned char mem_map [ PAGING_PAGES ] = {0,}; //3840字节
 
 /*
  * Get physical address of first (actually last :-) free page, and mark it
@@ -687,6 +687,7 @@ void do_no_page(unsigned long error_code,unsigned long address)
 // 则表示对应页面空闲；若字节值大于或等于1，则表示对应页面被占用或被不同程序共享占用。
 // 在该版本的Linux内核中，最多能管理16MB的物理内存，大于16MB的内存将弃之不用。
 // 对于具有16MB内存的PC机系统，在没有设置虚拟盘RAMDISK的情况下start_mem通常是4MB，
+// 大于12MB, start_mem为4MB, 大于6MB, start_mem为2MB, 否则为1MB. 
 // end_mem是16MB。因此此时主内存区范围是4MB-16MB,共有3072个物理页面可供分配。而
 // 范围0-1MB内存空间用于内核系统（其实内核只使用0-640Kb，剩下的部分被部分高速缓冲和
 // 设备内存占用）。
